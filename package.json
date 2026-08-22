@@ -1,0 +1,50 @@
+{
+  "name": "he-thong-xep-lop-tan-xuan",
+  "version": "1.0.0",
+  "description": "He Thong Xep Lop Hoc Sinh THCS Tan Xuan",
+  "author": "Ngo Tan Dat",
+  "private": true,
+  "main": "main.js",
+  "homepage": "./",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "lucide-react": "^1.16.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^6.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.0"
+  },
+  "build": {
+    "extends": null,
+    "appId": "com.tanxuan.xeplop",
+    "productName": "He Thong Xep Lop THCS Tan Xuan",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "main.js"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
