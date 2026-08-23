@@ -195,7 +195,13 @@ export default function App() {
 
   const jsonInputRef = useRef(null);
   const reImportExcelRef = useRef(null);
-
+// --- BẮT ĐẦU: KHAI BÁO BIẾN CHO FILE GVCN ---
+  const gvcnInputRef = useRef(null); 
+  const [gvcnList, setGvcnList] = useState(() => {
+    const saved = localStorage.getItem('app_gvcn_list');
+    return saved ? JSON.parse(saved) : {};
+  });
+  // --- KẾT THÚC: KHAI BÁO BIẾN CHO FILE GVCN ---
   // 3. KHAI BÁO GRADES (Lấy ngay từ LocalStorage để không bị trắng màn hình)
   const [grades, setGrades] = useState(() => {
     const savedWorkspace = localStorage.getItem('app_workspace_data');
@@ -567,6 +573,108 @@ export default function App() {
     XLSX.utils.book_append_sheet(wb, ws, `DuLieuGoc_Khoi_${activeGrade}`);
     XLSX.writeFile(wb, `KiemTra_DuLieuGoc_Khoi_${activeGrade}.xlsx`);
   };
+// --- BẮT ĐẦU: HÀM XUẤT EXCEL THỐNG KÊ (CÓ HSHN + GVCN) ---
+  const exportStatsToExcel = () => {
+    if (classesToExport.length === 0) return alert("Vui lòng chọn ít nhất 1 lớp để xuất báo cáo!");
+
+    const exportData = [];
+    let totalSiSo = 0;
+    let totalNam = 0;
+    let totalNu = 0;
+    let totalMayLanh = 0;
+    let totalKNS = 0;
+    let totalStem = 0;
+    let totalAVBN = 0;
+    let totalIC3 = 0;
+    let totalHSHN = 0;
+
+    classesToExport.forEach((cls, idx) => {
+      const visibleStudents = (cls.students || []).filter(s => !s.__isEmptyRow && !(activeState.hiddenPrintIds || []).includes(getStudentId(s)));
+      const nam = visibleStudents.filter(s => (s.GioiTinh || '').toString().trim().toLowerCase() === 'nam').length;
+      const nu = visibleStudents.filter(s => (s.GioiTinh || '').toString().trim().toLowerCase() !== 'nam').length;
+      
+      const mayLanh = visibleStudents.filter(hasMayLanh).length;
+      const kns = visibleStudents.filter(hasKNS).length;
+      const stem = visibleStudents.filter(hasStem).length;
+      const avbn = visibleStudents.filter(hasAVBN).length;
+      const ic3 = visibleStudents.filter(hasIC3).length;
+      
+      // Đếm số lượng học sinh có ghi chú chứa chữ "HSHN"
+      const hshn = visibleStudents.filter(st => {
+         const note = getGhiChu(st);
+         return note && note.toString().toUpperCase().includes('HSHN');
+      }).length;
+
+      totalSiSo += visibleStudents.length;
+      totalNam += nam;
+      totalNu += nu;
+      totalMayLanh += mayLanh;
+      totalKNS += kns;
+      totalStem += stem;
+      totalAVBN += avbn;
+      totalIC3 += ic3;
+      totalHSHN += hshn;
+      
+      // Lấy tên GVCN từ dữ liệu đã nạp (nếu lớp chưa có GVCN thì để trống)
+      const gvcn = gvcnList[cls.className] || "";
+
+      exportData.push({
+        "STT": idx + 1,
+        "TÊN LỚP": cls.className,
+        "GVCN": gvcn,
+        "SỈ SỐ": visibleStudents.length,
+        "NAM": nam,
+        "NỮ": nu,
+        "MÁY LẠNH": mayLanh,
+        "KỸ NĂNG SỐNG": kns,
+        "GIÁO DỤC STEM": stem,
+        "AVBN": avbn,
+        "IC3": ic3,
+        "HSHN": hshn,
+        "GHI CHÚ": ""
+      });
+    });
+
+    exportData.push({
+      "STT": "",
+      "TÊN LỚP": "TỔNG CỘNG",
+      "GVCN": "",
+      "SỈ SỐ": totalSiSo,
+      "NAM": totalNam,
+      "NỮ": totalNu,
+      "MÁY LẠNH": totalMayLanh,
+      "KỸ NĂNG SỐNG": totalKNS,
+      "GIÁO DỤC STEM": totalStem,
+      "AVBN": totalAVBN,
+      "IC3": totalIC3,
+      "HSHN": totalHSHN,
+      "GHI CHÚ": ""
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    const colWidths = [
+      { wch: 5 },  // STT
+      { wch: 10 }, // TÊN LỚP
+      { wch: 25 }, // GVCN
+      { wch: 10 }, // SỈ SỐ
+      { wch: 8 },  // NAM
+      { wch: 8 },  // NỮ
+      { wch: 13 }, // MÁY LẠNH
+      { wch: 16 }, // KỸ NĂNG SỐNG
+      { wch: 16 }, // GIÁO DỤC STEM
+      { wch: 12 }, // AVBN
+      { wch: 10 }, // IC3
+      { wch: 10 }, // HSHN
+      { wch: 20 }  // GHI CHÚ
+    ];
+    ws['!cols'] = colWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, `ThongKe_SiSo_Khoi_${activeGrade}`);
+    XLSX.writeFile(wb, `Thong_Ke_Si_So_Khoi_${activeGrade}.xlsx`);
+  };
+  // --- KẾT THÚC: HÀM XUẤT EXCEL THỐNG KÊ ---
 
   const exportToExcel = () => {
     if (classesToExport.length === 0) return alert("Vui lòng chọn ít nhất 1 lớp trong 'Chọn Lớp Xuất/In' để xuất file!");
@@ -611,6 +719,47 @@ export default function App() {
     XLSX.writeFile(wb, `Danh_Sach_Phan_Lop_Khoi_${activeGrade}.xlsx`);
   };
 
+  // --- BẮT ĐẦU: HÀM NẠP FILE EXCEL GVCN ---
+  const handleImportGVCN = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        
+        const newGvcnMap = { ...gvcnList };
+        let count = 0;
+        
+        data.forEach(row => {
+          const keys = Object.keys(row);
+          // Tự động tìm cột chứa chữ "LỚP" và "GVCN"
+          const lopKey = keys.find(k => k.toString().toLowerCase().includes('lớp') || k.toString().toLowerCase().includes('lop'));
+          const gvcnKey = keys.find(k => k.toString().toLowerCase().includes('gvcn') || k.toString().toLowerCase().includes('giáo viên'));
+          
+          if (lopKey && gvcnKey && row[lopKey] && row[gvcnKey]) {
+            const className = row[lopKey].toString().trim();
+            const teacherName = row[gvcnKey].toString().trim();
+            newGvcnMap[className] = teacherName;
+            count++;
+          }
+        });
+        
+        setGvcnList(newGvcnMap);
+        localStorage.setItem('app_gvcn_list', JSON.stringify(newGvcnMap));
+        alert(`✅ Đã nạp và lưu thành công danh sách ${count} Giáo viên chủ nhiệm!`);
+      } catch (err) {
+        console.error(err);
+        alert("❌ Đã xảy ra lỗi khi đọc File GVCN! Vui lòng kiểm tra lại file Excel.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = null;
+  };
+  // --- KẾT THÚC: HÀM NẠP FILE EXCEL GVCN ---
   const exportSessionFile = () => {
     const workspaceState = { grades, activeGrade };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(workspaceState));
@@ -1555,6 +1704,13 @@ const saveClassName = () => {
                 <BarChart2 size={22} color="#ec4899" /> Báo Cáo Thống Kê Số Lượng ({classesToExport.length} Lớp đang chọn in)
               </h3>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input type="file" ref={gvcnInputRef} accept=".xlsx, .xls" onChange={handleImportGVCN} style={{ display: 'none' }} />
+                <button onClick={() => gvcnInputRef.current.click()} style={{ padding: '6px 12px', backgroundColor: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }} title="Nạp danh sách Giáo viên chủ nhiệm từ Excel">
+                  <Upload size={16} /> Nạp File GVCN
+                </button>
+                <button onClick={exportStatsToExcel} style={{ padding: '6px 12px', backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                  <Download size={16} /> Xuất Excel Thống Kê
+                </button>
                 <button onClick={exportStatsToPDF} style={{ padding: '6px 12px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                   <Printer size={16} /> Xuất PDF Báo Cáo
                 </button>
