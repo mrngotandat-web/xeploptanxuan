@@ -1,7 +1,8 @@
 import { supabase } from './supabaseClient';
 import { LOCAL_ADMIN_SESSION } from './localAdmin';
 import Login from './Login';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { MAX_ROWS_PER_PAGE, fitA4Pages } from './fitA4Page';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, Download, RefreshCw, PlusCircle, Trash2, ArrowUp, ArrowDown, Eye, ArrowRightLeft, X, UserCheck, Layers, CheckSquare, Square, Search, Printer, FileText, Home, Settings, Columns, FileUp, FileDown, Type, EyeOff, Layers3, Sparkles, UserCheck2, Save, RotateCcw, BarChart2, Edit2, UserPlus, Undo, History } from 'lucide-react';
 
@@ -10,7 +11,7 @@ import { Upload, Download, RefreshCw, PlusCircle, Trash2, ArrowUp, ArrowDown, Ey
 // =======================================================================
 const DEFAULT_PRINT_CONFIG = {
   headerSize: 10.5, tableSize: 10.5, footerSize: 10.5,
-  headerSpacing: 2, footerSpacing: 4, fixedRowCount: 54,
+  headerSpacing: 2, footerSpacing: 4,
   rowPadding: 0.5, marginLeft: 5, marginRight: 5, marginTop: 5, marginBottom: 5,
   headerLeftWidth: 42, footerWidth: 50, headerMinHeight: 16, footerMinHeight: 14,
   showHeader: true, showFooter: true,
@@ -350,6 +351,11 @@ export default function App() {
   // 6. CẤU HÌNH ACTIVE
   const activeState = grades[activeGrade] || createInitialGradeState(activeGrade);
   const printConfig = activeState.printConfig || DEFAULT_PRINT_CONFIG;
+
+  // Chạy sau mỗi lần render trang in để cỡ chữ luôn khớp cấu hình và nội dung mới nhất
+  useLayoutEffect(() => {
+    if (currentView === 'PRINT') fitA4Pages(document.querySelectorAll('.a4-page'), printConfig.tableSize || 10.5);
+  });
   const docFormat = activeState.docFormat || DEFAULT_DOC_FORMAT;
 
   useEffect(() => {
@@ -477,17 +483,14 @@ export default function App() {
   const handleAutoFitA4 = () => {
     const dividedClasses = activeState.dividedClasses || [];
     if (dividedClasses.length === 0) return alert(`Khối ${activeGrade} chưa có dữ liệu lớp để cân chỉnh!`);
-    const maxStudentsInGrade = Math.max(...dividedClasses.map(c => (c.students || []).length), 1);
-    const isHeaderHidden = activeState.printConfig?.showHeader === false;
-    const maxCapacity = isHeaderHidden ? 58 : 54; 
 
     updateActiveGradeState(prev => ({
       printConfig: {
-        ...prev.printConfig, fixedRowCount: Math.min(maxStudentsInGrade, maxCapacity),
+        ...prev.printConfig,
         tableSize: 10.5, rowPadding: 0.5, headerSpacing: 2, footerSpacing: 4, marginTop: 5, marginBottom: 5
       }
     }));
-    alert(`⚡ Đã cân chỉnh chuẩn cho Khối ${activeGrade}!\n(Năng suất chứa tối đa: ${maxCapacity} HS/trang A4)`);
+    alert(`⚡ Đã cân chỉnh chuẩn cho Khối ${activeGrade}!\n(Năng suất chứa tối đa: ${MAX_ROWS_PER_PAGE} HS/trang A4)`);
   };
 
   const checkDuplicateInClasses = () => {
@@ -1378,7 +1381,7 @@ const saveClassName = () => {
             <tbody>
               {(studentList || []).map((st, sIdx) => {
                 if (!st) return null;
-                const globalIndex = pageIndex > 1 ? (pageIndex - 1) * (printConfig.fixedRowCount || 54) + sIdx + 1 : sIdx + 1;
+                const globalIndex = pageIndex > 1 ? (pageIndex - 1) * MAX_ROWS_PER_PAGE + sIdx + 1 : sIdx + 1;
                 const services = (activeState.priorityList || []).slice(2).filter(col => isYes(st[col])).join(", ");
                 return (
                   <tr key={sIdx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
@@ -1950,10 +1953,11 @@ const saveClassName = () => {
 
   if (currentView === 'PRINT') {
     return (
-      <div style={{ backgroundColor: '#cbd5e1', minHeight: '100vh', paddingBottom: '50px' }}>
+      <div className="print-view-root" style={{ backgroundColor: '#cbd5e1', minHeight: '100vh', paddingBottom: '50px' }}>
         <style>{`
           @media print {
             .no-print { display: none !important; }
+            .print-view-root { min-height: 0 !important; padding-bottom: 0 !important; }
             html, body { background-color: white !important; margin: 0 !important; padding: 0 !important; width: auto !important; height: auto !important; overflow: visible !important; }
             @page { size: A4 portrait; margin: 0mm !important; }
             .print-content-container { margin-top: 0 !important; padding-top: 0 !important; }
@@ -2095,7 +2099,7 @@ const saveClassName = () => {
         <div className="print-content-container" style={{ marginTop: '20px' }}>
           {classesToExport.length > 0 ? (
             classesToExport.map((cls, idx) => {
-              const rowLimit = printConfig.fixedRowCount || 54;
+              const rowLimit = MAX_ROWS_PER_PAGE;
               const visibleStudents = (cls.students || []).filter(s => !(activeState.hiddenPrintIds || []).includes(getStudentId(s)));
               const totalStudents = visibleStudents.length;
               const chunks = [];
