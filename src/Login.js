@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
+import { ADMIN_USERNAME, verifyLocalAdmin } from './localAdmin';
 
-export default function Login() {
+export default function Login({ onLocalAdminLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,20 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    if (email === ADMIN_USERNAME) {
+      try {
+        if (await verifyLocalAdmin(email, password)) {
+          onLocalAdminLogin();
+          return;
+        }
+        alert("Lỗi đăng nhập: Sai tên đăng nhập hoặc mật khẩu");
+      } catch (err) {
+        // crypto.subtle chỉ có trên HTTPS hoặc localhost
+        alert("Lỗi đăng nhập: Trình duyệt không hỗ trợ, hãy mở app qua HTTPS hoặc localhost");
+      }
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) alert("Lỗi đăng nhập: " + error.message);
     setLoading(false);
@@ -29,7 +44,7 @@ export default function Login() {
         <h2 style={{ textAlign: 'center', color: '#0369a1' }}>Đăng Nhập Hệ Thống</h2>
         <form>
           <input 
-            type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
+            type="text" placeholder="Tên đăng nhập hoặc Email" value={email} onChange={e => setEmail(e.target.value)}
             style={{ width: '100%', padding: '10px', margin: '10px 0', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box' }}
           />
           <input 

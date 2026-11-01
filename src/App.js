@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { LOCAL_ADMIN_SESSION } from './localAdmin';
 import Login from './Login';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
@@ -162,8 +163,11 @@ const formatStatText = (text, type) => {
 // =======================================================================
 export default function App() {
   // 1. STATE ĐĂNG NHẬP & BẢO VỆ DỮ LIỆU
-  const [session, setSession] = useState(null);
-  const [userRole, setUserRole] = useState('viewer');
+  const [authSession, setSession] = useState(null);
+  const [cloudRole, setUserRole] = useState('viewer');
+  const [isLocalAdmin, setIsLocalAdmin] = useState(false);
+  const session = isLocalAdmin ? LOCAL_ADMIN_SESSION : authSession;
+  const userRole = isLocalAdmin ? 'admin' : cloudRole;
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false); 
 
@@ -2131,7 +2135,7 @@ const saveClassName = () => {
           <button onClick={() => setShowAdminLogin(false)} style={{ position: 'absolute', top: 20, left: 20, padding: '10px 15px', backgroundColor: '#fff', color: '#5a3d2b', border: '2px solid #f0e6d2', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', zIndex: 10 }}>
             ← Quay lại trang Tra Cứu
           </button>
-          <Login />
+          <Login onLocalAdminLogin={() => setIsLocalAdmin(true)} />
         </div>
       );
     }
@@ -2292,7 +2296,7 @@ const saveClassName = () => {
             Xin chào: {session?.user?.email} | Quyền: {userRole === 'admin' ? 'QUẢN TRỊ (ADMIN)' : 'CHỈ XEM (VIEWER)'}
           </span>
           <button 
-            onClick={() => supabase.auth.signOut()} 
+            onClick={() => (isLocalAdmin ? setIsLocalAdmin(false) : supabase.auth.signOut())} 
             style={{ background: '#ef4444', color: 'white', padding: '4px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
             Đăng xuất
           </button>
